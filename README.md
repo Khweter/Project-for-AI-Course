@@ -48,59 +48,79 @@ Built on a decoupled architecture that runs search computation on background thr
 
 Every algorithm is implemented as a clean, standalone, textbook-faithful function following the 5-component state-space formulation (`initial_state`, `actions`, `result`, `goal_test`, `step_cost`).
 
-| Algorithm | Category | Frontier Structure | Evaluation Function | Complete | Optimal | Source |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Breadth-First Search (BFS)** | Uninformed | FIFO Queue | Depth | Yes (finite $b$) | Yes (unit cost) | [`uninformed.py`](algorithms/uninformed.py) |
-| **Depth-First Search (DFS)** | Uninformed | LIFO Stack | Depth (deepest) | No (finite graph: Yes) | No | [`uninformed.py`](algorithms/uninformed.py) |
-| **Uniform Cost Search (UCS)** | Uninformed | Priority Queue | $f(n) = g(n)$ | Yes ($\text{step} \ge \epsilon > 0$) | Yes | [`uninformed.py`](algorithms/uninformed.py) |
-| **Depth-Limited Search (DLS)** | Uninformed | LIFO Stack (limit $l$) | Depth $\le l$ | Yes (if $l \ge d$) | No | [`uninformed.py`](algorithms/uninformed.py) |
-| **Iterative Deepening (IDS)** | Uninformed | Repeated DLS | Iterative depth | Yes (finite $b$) | Yes (unit cost) | [`uninformed.py`](algorithms/uninformed.py) |
-| **Greedy Best-First (GBFS)** | Informed | Priority Queue | $f(n) = h(n)$ | No (finite graph: Yes) | No | [`informed.py`](algorithms/informed.py) |
-| **A\* Search** | Informed | Priority Queue | $f(n) = g(n) + h(n)$ | Yes (finite $b$) | Yes (admissible $h$) | [`informed.py`](algorithms/informed.py) |
-| **Beam Search** | Advanced | Bounded Priority Queue ($k$) | $f(n) = h(n)$ | No | No | [`advanced.py`](algorithms/advanced.py) |
-| **IDA\*** | Advanced | Depth-First Thresholding | $f(n) = g(n) + h(n)$ | Yes (finite $b$) | Yes (admissible $h$) | [`advanced.py`](algorithms/advanced.py) |
+| Algorithm                      | Category   | Frontier Structure           | Evaluation Function  | Complete                             | Optimal              | Source                                      |
+| :----------------------------- | :--------- | :--------------------------- | :------------------- | :----------------------------------- | :------------------- | :------------------------------------------ |
+| **Breadth-First Search (BFS)** | Uninformed | FIFO Queue                   | Depth                | Yes (finite $b$)                     | Yes (unit cost)      | [`uninformed.py`](algorithms/uninformed.py) |
+| **Depth-First Search (DFS)**   | Uninformed | LIFO Stack                   | Depth (deepest)      | No (finite graph: Yes)               | No                   | [`uninformed.py`](algorithms/uninformed.py) |
+| **Uniform Cost Search (UCS)**  | Uninformed | Priority Queue               | $f(n) = g(n)$        | Yes ($\text{step} \ge \epsilon > 0$) | Yes                  | [`uninformed.py`](algorithms/uninformed.py) |
+| **Depth-Limited Search (DLS)** | Uninformed | LIFO Stack (limit $l$)       | Depth $\le l$        | Yes (if $l \ge d$)                   | No                   | [`uninformed.py`](algorithms/uninformed.py) |
+| **Iterative Deepening (IDS)**  | Uninformed | Repeated DLS                 | Iterative depth      | Yes (finite $b$)                     | Yes (unit cost)      | [`uninformed.py`](algorithms/uninformed.py) |
+| **Greedy Best-First (GBFS)**   | Informed   | Priority Queue               | $f(n) = h(n)$        | No (finite graph: Yes)               | No                   | [`informed.py`](algorithms/informed.py)     |
+| **A\* Search**                 | Informed   | Priority Queue               | $f(n) = g(n) + h(n)$ | Yes (finite $b$)                     | Yes (admissible $h$) | [`informed.py`](algorithms/informed.py)     |
+| **Beam Search**                | Advanced   | Bounded Priority Queue ($k$) | $f(n) = h(n)$        | No                                   | No                   | [`advanced.py`](algorithms/advanced.py)     |
+| **IDA\***                      | Advanced   | Depth-First Thresholding     | $f(n) = g(n) + h(n)$ | Yes (finite $b$)                     | Yes (admissible $h$) | [`advanced.py`](algorithms/advanced.py)     |
 
 ---
 
 ## Supported Problem Domains & Presets
 
-| Problem Type | Built-in Presets | Available Heuristics |
-| :--- | :--- | :--- |
-| **Grid Pathfinding** | `Open Grid (20x20)`, `Backtracker Maze (21x21)`, `Prim's Maze (21x21)`, `Weighted Valley (20x20)` | `Manhattan`, `Euclidean` |
-| **Graph Search** | `Romania Road Map (Arad -> Bucharest)`, `Multi-Goal Graph`, `Heuristic Trap Graph` | `Straight-Line (SLD)` (uses custom node heuristics if defined, otherwise Euclidean SLD) |
-| **8-Puzzle** | `Easy`, `Medium`, `Hard`, `Random Solvable` | `Manhattan`, `Misplaced Tiles` |
+| Problem Type         | Built-in Presets                                                                                  | Available Heuristics                                                                    |
+| :------------------- | :------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------- |
+| **Grid Pathfinding** | `Open Grid (20x20)`, `Backtracker Maze (21x21)`, `Prim's Maze (21x21)`, `Weighted Valley (20x20)` | `Manhattan`, `Euclidean`                                                                |
+| **Graph Search**     | `Romania Road Map (Arad -> Bucharest)`, `Multi-Goal Graph`, `Heuristic Trap Graph`                | `Straight-Line (SLD)` (uses custom node heuristics if defined, otherwise Euclidean SLD) |
+| **8-Puzzle**         | `Easy`, `Medium`, `Hard`, `Random Solvable`                                                       | `Manhattan`, `Misplaced Tiles`                                                          |
 
 ---
 
 ## Screenshots
 
-### Multi-Algorithm Benchmark & Charts
+### 1. Multi-Algorithm Benchmark & Charts
+
 <p align="center">
   <img src="assets/images/benchmark.png" alt="Multi-Algorithm Benchmark Charts and Table" width="900">
 </p>
 
-### Interactive Problem Views
+### 2. Grid Pathfinding & Maze Presets
 
-| Weighted Graph (Romania Road Map) | 8-Puzzle Solver |
-| :---: | :---: |
-| <img src="assets/images/romania-graph.png" alt="Romania Road Map Graph View" width="440"> | <img src="assets/images/puzzle-view.png" alt="8-Puzzle View" width="440"> |
+|                            Open Grid (`20x20`)                             |                                  Weighted Valley (`20x20`)                                  |
+| :------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: |
+| <img src="assets/images/grid-view.png" alt="Open Grid Preset" width="440"> | <img src="assets/images/grid-weighted-valley.png" alt="Weighted Valley Preset" width="440"> |
 
-| Grid Setup & Maze Tools | A* Exploration & Optimal Path |
-| :---: | :---: |
-| <img src="assets/images/grid-view.png" alt="Grid View Initial State" width="440"> | <img src="assets/images/grid-view-after.png" alt="Grid View Solved" width="440"> |
+|                                  Backtracker Maze (`21x21`)                                   |                               Prim's Maze (`21x21`)                                |
+| :-------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------: |
+| <img src="assets/images/grid-backtracker-maze.png" alt="Backtracker Maze Preset" width="440"> | <img src="assets/images/grid-prims-maze.png" alt="Prim's Maze Preset" width="440"> |
+
+### 3. Graph Search Presets
+
+<p align="center">
+  <strong>Romania Road Map (Arad -> Bucharest)</strong><br>
+  <img src="assets/images/romania-graph.png" alt="Romania Road Map Graph Preset" width="760">
+</p>
+
+|                                     Multi-Goal Graph                                     |                                       Heuristic Trap Graph                                       |
+| :--------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------: |
+| <img src="assets/images/graph-multi-goal.png" alt="Multi-Goal Graph Preset" width="440"> | <img src="assets/images/graph-heuristic-trap.png" alt="Heuristic Trap Graph Preset" width="440"> |
+
+### 4. 8-Puzzle Solver
+
+<p align="center">
+  <img src="assets/images/puzzle-view.png" alt="8-Puzzle Solver View" width="760">
+</p>
 
 ---
 
 ## Download & Quick Start
 
 ### Option 1: Standalone Windows Executable (Recommended)
+
 No Python installation is required.
 
 1. Open the [**Latest Release**](https://github.com/Khweter/Project-for-AI-Course/releases/latest) page.
 2. Download `Project for AI.exe` from the **Assets** section.
-3. Double-click to launch *(if Windows SmartScreen prompts for an unsigned executable, click **More info** -> **Run anyway**)*.
+3. Double-click to launch _(if Windows SmartScreen prompts for an unsigned executable, click **More info** -> **Run anyway**)_.
 
 ### Option 2: Run from Source
+
 Requires **Python 3.10+** (verified on Python 3.15.2).
 
 ```bash
@@ -115,11 +135,13 @@ python main.py
 ```
 
 **Dependencies (`requirements.txt`):**
+
 - `PyQt6 >= 6.5`
 - `pyqtgraph >= 0.13`
 - `matplotlib >= 3.7`
 
 ### Building the Windows Executable
+
 To rebuild `dist\Project for AI.exe` locally using PyInstaller:
 
 ```cmd
@@ -132,13 +154,15 @@ build_exe.bat
 ## Controls & Keyboard Shortcuts
 
 ### Canvas Navigation (All Views)
-| Action | Input |
-| :--- | :--- |
-| Zoom In / Out | `Mouse Wheel` (cursor-anchored, 0.25x – 10.0x) or `Ctrl + +` / `Ctrl + -` |
-| Reset / Fit View | `Ctrl + 0` or **Fit** button |
-| Pan Canvas | `Middle-Mouse Drag` or `Ctrl + Left-Click Drag` |
+
+| Action           | Input                                                                     |
+| :--------------- | :------------------------------------------------------------------------ |
+| Zoom In / Out    | `Mouse Wheel` (cursor-anchored, 0.25x – 10.0x) or `Ctrl + +` / `Ctrl + -` |
+| Reset / Fit View | `Ctrl + 0` or **Fit** button                                              |
+| Pan Canvas       | `Middle-Mouse Drag` or `Ctrl + Left-Click Drag`                           |
 
 ### Domain-Specific Interactions
+
 - **Grid Pathfinding:**
   - `Left-Click & Drag` Start or Goal cells to reposition them.
   - `Left-Click & Drag` open or wall cells to paint/erase walls.
@@ -159,6 +183,7 @@ build_exe.bat
 Scenarios can be saved to `.json` directly via the **Save** button in the control panel, and loaded via `problems/io_loader.py` (`load_scenario` supporting `.json` for Grid/Graph and `.txt` for ASCII grids).
 
 **JSON Grid Example:**
+
 ```json
 {
   "type": "grid",
@@ -166,13 +191,17 @@ Scenarios can be saved to `.json` directly via the **Save** button in the contro
   "cols": 4,
   "start": [0, 0],
   "goals": [[3, 3]],
-  "walls": [[1, 1], [1, 2]],
+  "walls": [
+    [1, 1],
+    [1, 2]
+  ],
   "weights": { "2,1": 5.0 },
   "allow_diagonal": false
 }
 ```
 
 **ASCII TXT Grid Example (`S` = Start, `G` = Goal, `#` = Wall, `.` = Open):**
+
 ```text
 S..#
 .##.
@@ -231,14 +260,15 @@ Project-for-AI-Course/
 Developed for the **Artificial Intelligence (ELE 161)** course — **Faculty of Engineering, New Ismailia National University (NINU)**, Artificial Intelligence Engineering Program (AIEP), supervised by **Dr. Ahmed Magdy**.
 
 ### Team Members
-| # | Name |
-| :---: | :--- |
-| 1 | هنا وائل عبدالرحمن |
-| 2 | مني محمد كمال |
-| 3 | حلا محمود فوزي |
-| 4 | زينة محمود فوزي |
-| 5 | ملك محمد سعيد |
-| 6 | ملك عادل نبيل |
-| 7 | يارا أيمن محمد |
-| 8 | يوسف محمد عبدالله |
-| 9 | ياسين مصطفي كمال |
+
+|  #  | Name               |
+| :-: | :----------------- |
+|  1  | هنا وائل عبدالرحمن |
+|  2  | مني محمد كمال      |
+|  3  | حلا محمود فوزي     |
+|  4  | زينة محمود فوزي    |
+|  5  | ملك محمد سعيد      |
+|  6  | ملك عادل نبيل      |
+|  7  | يارا أيمن محمد     |
+|  8  | يوسف محمد عبدالله  |
+|  9  | ياسين مصطفي كمال   |
