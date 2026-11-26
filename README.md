@@ -257,7 +257,7 @@ Project-for-AI-Course/
 
 ## Course & Team
 
-Developed for the **Artificial Intelligence (ELE 161)** course — **Faculty of Engineering, New Ismailia National University (NINU)**, Artificial Intelligence Engineering Program (AIEP), supervised by **Dr. Ahmed Magdy**.
+Developed for the **Artificial Intelligence ** course — **Faculty of Engineering, New Ismailia National University (NINU)**, Artificial Intelligence Engineering Program (AIEP), supervised by **Dr. Ahmed Magdy**.
 
 ### Team Members
 | # | Name |
