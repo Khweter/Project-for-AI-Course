@@ -27,7 +27,6 @@ Built on a decoupled architecture that runs search computation on background thr
 - [Screenshots](#screenshots)
 - [Download & Quick Start](#download--quick-start)
 - [Controls & Keyboard Shortcuts](#controls--keyboard-shortcuts)
-- [Custom Scenario Format (JSON / TXT)](#custom-scenario-format-json--txt)
 - [Project Architecture](#project-architecture)
 - [Course & Team](#course--team)
 
@@ -175,38 +174,6 @@ build_exe.bat
   - `Right-Click` a node, edge, or empty canvas for context actions (Add Node, Connect, Rename, Set Heuristic `h(n)`, Set Start/Goal, Delete).
 - **8-Puzzle:**
   - `Left-Click` any tile adjacent to the blank slot to slide it interactively.
-
----
-
-## Custom Scenario Format (JSON / TXT)
-
-Scenarios can be saved to `.json` directly via the **Save** button in the control panel, and loaded via `problems/io_loader.py` (`load_scenario` supporting `.json` for Grid/Graph and `.txt` for ASCII grids).
-
-**JSON Grid Example:**
-
-```json
-{
-  "type": "grid",
-  "rows": 4,
-  "cols": 4,
-  "start": [0, 0],
-  "goals": [[3, 3]],
-  "walls": [
-    [1, 1],
-    [1, 2]
-  ],
-  "weights": { "2,1": 5.0 },
-  "allow_diagonal": false
-}
-```
-
-**ASCII TXT Grid Example (`S` = Start, `G` = Goal, `#` = Wall, `.` = Open):**
-
-```text
-S..#
-.##.
-...G
-```
 
 ---
 
