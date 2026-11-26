@@ -1,5 +1,6 @@
 from __future__ import annotations
 import heapq
+import time
 from typing import Callable
 
 from core.metrics import tracked_search
@@ -22,6 +23,11 @@ from algorithms.registry import register
 def greedy_best_first(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Informed Search
@@ -30,6 +36,18 @@ def greedy_best_first(
     h_fn = heuristic or problem.heuristic
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         counter = 0
@@ -43,6 +61,17 @@ def greedy_best_first(
         metrics.record_frontier(len(frontier))
 
         while frontier:
+            if (metrics.nodes_expanded & 255) == 0:
+                if cancel_check and cancel_check():
+                    aborted_reason = "Cancelled"
+                    break
+                if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                    aborted_reason = "Timeout"
+                    break
+                if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                    aborted_reason = "Limit"
+                    break
+
             # Pop node with smallest heuristic h(n)
             _, _, current = heapq.heappop(frontier)
             if current.state in explored:
@@ -50,11 +79,11 @@ def greedy_best_first(
             explored.add(current.state)
             metrics.nodes_expanded += 1
             parent_st = current.parent.state if current.parent else None
-            events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+            emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
 
             # Goal test upon expansion
             if problem.goal_test(current.state):
-                events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
                 goal_node = current
                 break
 
@@ -73,7 +102,7 @@ def greedy_best_first(
                 metrics.nodes_generated += 1
                 heapq.heappush(frontier, (h_cost, counter, child))
                 metrics.record_frontier(len(frontier))
-                events.append(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, h=h_cost, f=f_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, h=h_cost, f=f_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
 
     # Reconstruct path
     path = [n.state for n in goal_node.path()] if goal_node else []
@@ -87,6 +116,8 @@ def greedy_best_first(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )
 
@@ -104,6 +135,11 @@ def greedy_best_first(
 def a_star(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Informed Search
@@ -112,6 +148,18 @@ def a_star(
     h_fn = heuristic or problem.heuristic
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         counter = 0
@@ -125,6 +173,17 @@ def a_star(
         metrics.record_frontier(len(frontier))
 
         while frontier:
+            if (metrics.nodes_expanded & 255) == 0:
+                if cancel_check and cancel_check():
+                    aborted_reason = "Cancelled"
+                    break
+                if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                    aborted_reason = "Timeout"
+                    break
+                if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                    aborted_reason = "Limit"
+                    break
+
             # Pop node with smallest f(n) = g(n) + h(n)
             current = heapq.heappop(frontier)
             if current.state in explored:
@@ -132,11 +191,11 @@ def a_star(
             explored.add(current.state)
             metrics.nodes_expanded += 1
             parent_st = current.parent.state if current.parent else None
-            events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+            emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
 
             # Goal test when popped to guarantee optimality with admissible h
             if problem.goal_test(current.state):
-                events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, h=current.h, f=current.f, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
                 goal_node = current
                 break
 
@@ -158,7 +217,7 @@ def a_star(
                     heapq.heappush(frontier, child)
                     metrics.record_frontier(len(frontier))
                     kind = EventKind.UPDATE if is_update else EventKind.GENERATE
-                    events.append(StepEvent(kind, neighbor, g=g_cost, h=h_cost, f=f_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                    emit(StepEvent(kind, neighbor, g=g_cost, h=h_cost, f=f_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
 
     # Reconstruct optimal path
     path = [n.state for n in goal_node.path()] if goal_node else []
@@ -172,5 +231,7 @@ def a_star(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )

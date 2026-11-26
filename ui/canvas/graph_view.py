@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsEllipseItem, QGraphicsLineItem,
     QGraphicsPolygonItem, QGraphicsSimpleTextItem, QGraphicsItem,
     QInputDialog, QMenu, QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLineEdit, QDoubleSpinBox, QCheckBox, QPushButton, QScrollArea,
+    QLineEdit, QCheckBox, QPushButton, QScrollArea,
     QWidget, QComboBox, QLabel, QDialogButtonBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPointF
@@ -14,6 +14,42 @@ from core.trace import EventKind, StepEvent
 from problems.graph_problem import GraphProblem
 from ui.canvas.base_view import ZoomableGraphicsView
 from ui.theme import Colors, build_stylesheet
+from ui.widgets.spinbox import CleanDoubleSpinBox
+
+
+def _prompt_double(
+    parent: QWidget,
+    title: str,
+    label: str,
+    value: float,
+    min_val: float = 0.0,
+    max_val: float = 100000.0,
+    decimals: int = 1,
+) -> tuple[float, bool]:
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(title)
+    dlg.setMinimumWidth(260)
+    dlg.setStyleSheet(build_stylesheet())
+
+    layout = QVBoxLayout(dlg)
+    layout.addWidget(QLabel(label))
+
+    spin = CleanDoubleSpinBox()
+    spin.setRange(min_val, max_val)
+    spin.setDecimals(decimals)
+    spin.setValue(value)
+    spin.selectAll()
+    layout.addWidget(spin)
+
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+    )
+    buttons.accepted.connect(dlg.accept)
+    buttons.rejected.connect(dlg.reject)
+    layout.addWidget(buttons)
+
+    ok = dlg.exec() == QDialog.DialogCode.Accepted
+    return spin.value(), ok
 
 
 class AddNodeDialog(QDialog):
@@ -32,7 +68,7 @@ class AddNodeDialog(QDialog):
         form.addRow("Node Name:", self.name_edit)
 
         self.chk_custom_h = QCheckBox("Set custom heuristic h(n)")
-        self.h_spin = QDoubleSpinBox()
+        self.h_spin = CleanDoubleSpinBox()
         self.h_spin.setRange(0.0, 100000.0)
         self.h_spin.setDecimals(1)
         self.h_spin.setEnabled(False)
@@ -40,7 +76,7 @@ class AddNodeDialog(QDialog):
         form.addRow(self.chk_custom_h, self.h_spin)
         layout.addLayout(form)
 
-        self._connections: dict[str, tuple[QCheckBox, QDoubleSpinBox]] = {}
+        self._connections: dict[str, tuple[QCheckBox, CleanDoubleSpinBox]] = {}
         if existing_nodes:
             lbl = QLabel("Connect to existing nodes (with edge cost):")
             lbl.setObjectName("dim")
@@ -56,7 +92,7 @@ class AddNodeDialog(QDialog):
             for node in existing_nodes:
                 row = QHBoxLayout()
                 cb = QCheckBox(node)
-                spin = QDoubleSpinBox()
+                spin = CleanDoubleSpinBox()
                 spin.setRange(0.1, 100000.0)
                 spin.setDecimals(1)
                 spin.setValue(10.0)
@@ -119,7 +155,7 @@ class ConnectEdgeDialog(QDialog):
         self.dst_combo.addItems(targets)
         form.addRow("To:", self.dst_combo)
 
-        self.weight_spin = QDoubleSpinBox()
+        self.weight_spin = CleanDoubleSpinBox()
         self.weight_spin.setRange(0.1, 100000.0)
         self.weight_spin.setDecimals(1)
         self.weight_spin.setValue(10.0)
@@ -450,7 +486,7 @@ class GraphView(ZoomableGraphicsView):
             return
 
         current_w = self._problem.adj.get(src, {}).get(name, 10.0)
-        weight, ok = QInputDialog.getDouble(
+        weight, ok = _prompt_double(
             self, "Edge Cost", f"Cost for {src} -> {name}:", current_w, 0.1, 100000.0, 1
         )
         if ok:
@@ -462,7 +498,7 @@ class GraphView(ZoomableGraphicsView):
         if not self._problem:
             return
         current_w = self._problem.adj.get(u, {}).get(v, 10.0)
-        weight, ok = QInputDialog.getDouble(
+        weight, ok = _prompt_double(
             self, "Edit Edge Cost", f"Cost for {u} -> {v}:", current_w, 0.1, 100000.0, 1
         )
         if ok:
@@ -558,7 +594,7 @@ class GraphView(ZoomableGraphicsView):
                     self.problem_modified.emit()
             elif chosen == act_heur:
                 cur_h = self._problem.heuristic(clicked_node)
-                val, ok = QInputDialog.getDouble(
+                val, ok = _prompt_double(
                     self, "Node Heuristic", f"h({clicked_node}):", cur_h, 0.0, 100000.0, 1
                 )
                 if ok:

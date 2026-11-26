@@ -38,4 +38,6 @@ class SearchResult:
     elapsed_sec: float = 0.0
     peak_memory_bytes: int = 0
     success: bool = False
+    aborted_reason: str = ""
+    trace_truncated: bool = False
     events: list[StepEvent] = field(default_factory=list)

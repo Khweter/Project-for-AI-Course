@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QSplitter, QStatusBar,
     QStackedWidget, QFileDialog, QMessageBox,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 
 import algorithms
@@ -29,6 +29,42 @@ from ui.canvas.graph_view import GraphView
 from ui.canvas.puzzle_view import PuzzleView
 
 
+class SearchWorker(QThread):
+
+    finished_search = pyqtSignal(object)
+
+    def __init__(
+        self,
+        fn: Callable,
+        problem: Problem,
+        heuristic: Callable | None,
+        params: dict,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._fn = fn
+        self._problem = problem
+        self._heuristic = heuristic
+        self._params = dict(params)
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        result = self._fn(
+            self._problem,
+            heuristic=self._heuristic,
+            record_trace=True,
+            max_trace_events=15_000,
+            timeout_sec=5.0,
+            max_nodes=150_000,
+            cancel_check=lambda: self._cancelled,
+            **self._params,
+        )
+        self.finished_search.emit(result)
+
+
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -43,6 +79,7 @@ class MainWindow(QMainWindow):
         self.controller = PlaybackController(self)
         self._problem: Problem | None = None
         self._current_result: SearchResult | None = None
+        self._search_worker: SearchWorker | None = None
 
         self._build_ui()
         self._connect_signals()
@@ -112,6 +149,7 @@ class MainWindow(QMainWindow):
         self.control_panel.preset_changed.connect(self._load_active_preset)
         self.control_panel.algorithm_changed.connect(self._update_status_from_controls)
         self.control_panel.run_requested.connect(self.run_search)
+        self.control_panel.cancel_requested.connect(self.cancel_search)
         self.control_panel.reset_requested.connect(self._on_full_reset)
         self.control_panel.maze_requested.connect(self._on_maze_requested)
         self.control_panel.clear_walls_requested.connect(self._on_clear_walls)
@@ -181,22 +219,54 @@ class MainWindow(QMainWindow):
     def run_search(self):
         if self._problem is None:
             return
+        if self._search_worker is not None and self._search_worker.isRunning():
+            return
+
         self._active_canvas().clear_search()
         self.controller.set_events([])
+        self.playback.set_range(0)
 
         algo_name = self.control_panel.selected_algorithm()
         info = algorithms.get(algo_name)
         params = self.control_panel.algorithm_params()
         heuristic = self._resolve_heuristic() if info.needs_heuristic else None
 
-        result = info.fn(self._problem, heuristic=heuristic, **params)
+        self.control_panel.set_searching(True)
+        self.metrics_panel.set_searching()
+        self.statusBar().showMessage(f"Searching ({algo_name})...")
+
+        self._search_worker = SearchWorker(
+            info.fn,
+            self._problem,
+            heuristic,
+            params,
+            parent=self,
+        )
+        self._search_worker.finished_search.connect(self._on_search_finished)
+        self._search_worker.start()
+
+    def cancel_search(self):
+        if self._search_worker is not None and self._search_worker.isRunning():
+            self._search_worker.cancel()
+            self.control_panel.cancel_btn.setEnabled(False)
+            self.statusBar().showMessage("Cancelling search...")
+
+    def _on_search_finished(self, result: SearchResult):
+        self.control_panel.set_searching(False)
         self._current_result = result
         self.metrics_panel.update_from_result(result)
+
+        if result.aborted_reason == "Cancelled":
+            self.statusBar().showMessage("Search cancelled")
+            return
+
         self.controller.set_events(result.events)
         self.playback.set_range(len(result.events))
 
         if result.events:
             self.controller.play()
+        elif result.success:
+            self._active_canvas().set_path(result.path)
         else:
             self._update_status_from_controls()
 
@@ -316,12 +386,24 @@ class MainWindow(QMainWindow):
     def _on_playback_finished(self):
         if self._current_result and self._current_result.success:
             self._active_canvas().set_path(self._current_result.path)
+            suffix = " (trace capped at 15k)" if self._current_result.trace_truncated else ""
             self.statusBar().showMessage(
                 f"Solved ({self._current_result.algorithm}) | Cost: {self._current_result.path_cost:.1f} | "
+                f"Expanded: {self._current_result.nodes_expanded}{suffix}"
+            )
+        elif self._current_result and self._current_result.aborted_reason:
+            self.statusBar().showMessage(
+                f"Search stopped ({self._current_result.aborted_reason}) | "
                 f"Expanded: {self._current_result.nodes_expanded}"
             )
         else:
             self.statusBar().showMessage("Search finished: no path found")
+
+    def closeEvent(self, event):
+        if self._search_worker is not None and self._search_worker.isRunning():
+            self._search_worker.cancel()
+            self._search_worker.wait(3000)
+        super().closeEvent(event)
 
     def _on_full_reset(self):
         self._current_result = None

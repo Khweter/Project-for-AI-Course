@@ -1,7 +1,7 @@
 from __future__ import annotations
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QLabel,
-    QPushButton, QFormLayout, QSpinBox, QWidget, QCheckBox,
+    QPushButton, QFormLayout, QWidget, QCheckBox,
 )
 from PyQt6.QtCore import pyqtSignal
 
@@ -9,6 +9,7 @@ import algorithms
 from presets.scenarios import preset_names
 from ui.playback import IconButton
 from ui.theme import Colors, current_theme, SPACING
+from ui.widgets.spinbox import CleanSpinBox
 
 
 class ControlPanel(QFrame):
@@ -17,6 +18,7 @@ class ControlPanel(QFrame):
     preset_changed = pyqtSignal(str)
     algorithm_changed = pyqtSignal(str)
     run_requested = pyqtSignal()
+    cancel_requested = pyqtSignal()
     reset_requested = pyqtSignal()
     maze_requested = pyqtSignal(str)
     clear_walls_requested = pyqtSignal()
@@ -113,13 +115,13 @@ class ControlPanel(QFrame):
 
         self.param_card, paf = self._make_card("Parameters")
         self.depth_label = QLabel("Depth Limit")
-        self.depth_limit_spin = QSpinBox()
+        self.depth_limit_spin = CleanSpinBox()
         self.depth_limit_spin.setRange(1, 1000)
         self.depth_limit_spin.setValue(50)
         paf.addRow(self.depth_label, self.depth_limit_spin)
 
         self.beam_label = QLabel("Beam Width")
-        self.beam_width_spin = QSpinBox()
+        self.beam_width_spin = CleanSpinBox()
         self.beam_width_spin.setRange(1, 500)
         self.beam_width_spin.setValue(3)
         paf.addRow(self.beam_label, self.beam_width_spin)
@@ -134,8 +136,13 @@ class ControlPanel(QFrame):
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.clicked.connect(self.reset_requested)
 
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.cancel_requested)
+        self.cancel_btn.setVisible(False)
+
         actions.addWidget(self.run_btn, stretch=1)
         actions.addWidget(self.reset_btn)
+        actions.addWidget(self.cancel_btn)
         layout.addLayout(actions)
 
         bench_row = QHBoxLayout()
@@ -262,6 +269,13 @@ class ControlPanel(QFrame):
         self.beam_label.setVisible(show_beam)
         self.beam_width_spin.setVisible(show_beam)
         self.param_card.setVisible(show_depth or show_beam)
+
+    def set_searching(self, searching: bool):
+        self.run_btn.setEnabled(not searching)
+        self.run_btn.setText("Searching..." if searching else "Run Search")
+        self.reset_btn.setVisible(not searching)
+        self.cancel_btn.setVisible(searching)
+        self.cancel_btn.setEnabled(searching)
 
     def refresh_theme(self):
         self.title_lbl.setStyleSheet(

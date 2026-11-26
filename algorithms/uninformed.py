@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import deque
 import heapq
+import time
 from typing import Callable
 
 from core.metrics import tracked_search
@@ -22,6 +23,11 @@ from algorithms.registry import register
 def bfs(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Uninformed Search
@@ -29,13 +35,25 @@ def bfs(
     # Evaluation: expands shallowest unvisited nodes first (depth order)
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         start = SearchNode(state=problem.initial)
         metrics.nodes_generated += 1
 
         if problem.goal_test(start.state):
-            events.append(StepEvent(EventKind.GOAL_FOUND, start.state, frontier_size=0, visited_count=1))
+            emit(StepEvent(EventKind.GOAL_FOUND, start.state, frontier_size=0, visited_count=1))
             goal_node = start
         else:
             frontier: deque[SearchNode] = deque([start])
@@ -43,11 +61,22 @@ def bfs(
             metrics.record_frontier(len(frontier))
 
             while frontier:
+                if (metrics.nodes_expanded & 255) == 0:
+                    if cancel_check and cancel_check():
+                        aborted_reason = "Cancelled"
+                        break
+                    if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                        aborted_reason = "Timeout"
+                        break
+                    if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                        aborted_reason = "Limit"
+                        break
+
                 # Pop oldest node from the front of the FIFO queue
                 current = frontier.popleft()
                 metrics.nodes_expanded += 1
                 parent_st = current.parent.state if current.parent else None
-                events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
 
                 # Generate unvisited neighbors and goal-test on generation
                 for action in problem.actions(current.state):
@@ -61,13 +90,13 @@ def bfs(
                     explored.add(neighbor)
 
                     if problem.goal_test(neighbor):
-                        events.append(StepEvent(EventKind.GOAL_FOUND, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                        emit(StepEvent(EventKind.GOAL_FOUND, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
                         goal_node = child
                         break
 
                     frontier.append(child)
                     metrics.record_frontier(len(frontier))
-                    events.append(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                    emit(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
 
                 if goal_node is not None:
                     break
@@ -84,6 +113,8 @@ def bfs(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )
 
@@ -100,6 +131,11 @@ def bfs(
 def dfs(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Uninformed Search
@@ -107,6 +143,18 @@ def dfs(
     # Evaluation: expands deepest unvisited node first
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         start = SearchNode(state=problem.initial)
@@ -116,6 +164,17 @@ def dfs(
         metrics.record_frontier(len(frontier))
 
         while frontier:
+            if (metrics.nodes_expanded & 255) == 0:
+                if cancel_check and cancel_check():
+                    aborted_reason = "Cancelled"
+                    break
+                if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                    aborted_reason = "Timeout"
+                    break
+                if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                    aborted_reason = "Limit"
+                    break
+
             # Pop most recently pushed node from the LIFO stack
             current = frontier.pop()
             if current.state in explored:
@@ -123,11 +182,11 @@ def dfs(
             explored.add(current.state)
             metrics.nodes_expanded += 1
             parent_st = current.parent.state if current.parent else None
-            events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+            emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
 
             # Goal test upon expansion
             if problem.goal_test(current.state):
-                events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
                 goal_node = current
                 break
 
@@ -142,7 +201,7 @@ def dfs(
                 metrics.nodes_generated += 1
                 frontier.append(child)
                 metrics.record_frontier(len(frontier))
-                events.append(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
 
     # Reconstruct path from initial state to goal
     path = [n.state for n in goal_node.path()] if goal_node else []
@@ -156,6 +215,8 @@ def dfs(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )
 
@@ -172,6 +233,11 @@ def dfs(
 def ucs(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Uninformed Search
@@ -179,6 +245,18 @@ def ucs(
     # Evaluation: f(n) = g(n) (cumulative path cost from start)
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         counter = 0
@@ -190,6 +268,17 @@ def ucs(
         metrics.record_frontier(len(frontier))
 
         while frontier:
+            if (metrics.nodes_expanded & 255) == 0:
+                if cancel_check and cancel_check():
+                    aborted_reason = "Cancelled"
+                    break
+                if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                    aborted_reason = "Timeout"
+                    break
+                if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                    aborted_reason = "Limit"
+                    break
+
             # Pop lowest-g node from the priority queue
             current = heapq.heappop(frontier)
             if current.state in explored:
@@ -197,11 +286,11 @@ def ucs(
             explored.add(current.state)
             metrics.nodes_expanded += 1
             parent_st = current.parent.state if current.parent else None
-            events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+            emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
 
             # Goal test when popped so the lowest-cost path is guaranteed
             if problem.goal_test(current.state):
-                events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
+                emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(explored)))
                 goal_node = current
                 break
 
@@ -221,7 +310,7 @@ def ucs(
                     heapq.heappush(frontier, child)
                     metrics.record_frontier(len(frontier))
                     kind = EventKind.UPDATE if is_update else EventKind.GENERATE
-                    events.append(StepEvent(kind, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
+                    emit(StepEvent(kind, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(explored)))
 
     # Reconstruct optimal path
     path = [n.state for n in goal_node.path()] if goal_node else []
@@ -235,6 +324,8 @@ def ucs(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )
 
@@ -253,6 +344,11 @@ def depth_limited(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
     depth_limit: int = 50,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Uninformed Search
@@ -260,6 +356,18 @@ def depth_limited(
     # Evaluation: expands deepest node within depth_limit
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         start = SearchNode(state=problem.initial)
@@ -269,21 +377,32 @@ def depth_limited(
         metrics.record_frontier(len(frontier))
 
         while frontier:
+            if (metrics.nodes_expanded & 255) == 0:
+                if cancel_check and cancel_check():
+                    aborted_reason = "Cancelled"
+                    break
+                if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                    aborted_reason = "Timeout"
+                    break
+                if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                    aborted_reason = "Limit"
+                    break
+
             # Pop from stack
             current = frontier.pop()
             metrics.nodes_expanded += 1
             parent_st = current.parent.state if current.parent else None
-            events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+            emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
 
             # Goal test
             if problem.goal_test(current.state):
-                events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+                emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
                 goal_node = current
                 break
 
             # Stop expanding once depth_limit is reached
             if current.depth >= depth_limit:
-                events.append(StepEvent(EventKind.PRUNE, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+                emit(StepEvent(EventKind.PRUNE, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
                 continue
 
             # Push neighbors if reached at a strictly shallower depth
@@ -299,7 +418,7 @@ def depth_limited(
                 metrics.nodes_generated += 1
                 frontier.append(child)
                 metrics.record_frontier(len(frontier))
-                events.append(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(best_depth)))
+                emit(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(best_depth)))
 
     # Reconstruct path
     path = [n.state for n in goal_node.path()] if goal_node else []
@@ -313,6 +432,8 @@ def depth_limited(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )
 
@@ -331,6 +452,11 @@ def iterative_deepening(
     problem: Problem,
     heuristic: Callable[[State], float] | None = None,
     depth_limit: int = 50,
+    record_trace: bool = True,
+    max_trace_events: int | None = 15_000,
+    timeout_sec: float | None = None,
+    max_nodes: int | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     **kwargs,
 ) -> SearchResult:
     # Category: Uninformed Search
@@ -338,6 +464,18 @@ def iterative_deepening(
     # Evaluation: iterative depth-first passes until goal or no cutoff
     events: list[StepEvent] = []
     goal_node: SearchNode | None = None
+    aborted_reason = ""
+    trace_truncated = False
+    t0 = time.perf_counter()
+
+    def emit(ev: StepEvent):
+        nonlocal trace_truncated
+        if not record_trace:
+            return
+        if ev.kind == EventKind.GOAL_FOUND or max_trace_events is None or len(events) < max_trace_events:
+            events.append(ev)
+        else:
+            trace_truncated = True
 
     with tracked_search() as metrics:
         for limit in range(depth_limit + 1):
@@ -349,25 +487,36 @@ def iterative_deepening(
             metrics.record_frontier(len(frontier))
 
             while frontier:
+                if (metrics.nodes_expanded & 255) == 0:
+                    if cancel_check and cancel_check():
+                        aborted_reason = "Cancelled"
+                        break
+                    if timeout_sec is not None and (time.perf_counter() - t0) >= timeout_sec:
+                        aborted_reason = "Timeout"
+                        break
+                    if max_nodes is not None and metrics.nodes_expanded >= max_nodes:
+                        aborted_reason = "Limit"
+                        break
+
                 # Pop from stack for the current depth limit pass
                 current = frontier.pop()
                 metrics.nodes_expanded += 1
                 parent_st = current.parent.state if current.parent else None
-                events.append(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+                emit(StepEvent(EventKind.EXPAND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
 
                 # Goal test
                 if problem.goal_test(current.state):
-                    events.append(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+                    emit(StepEvent(EventKind.GOAL_FOUND, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
                     goal_node = current
                     break
 
                 # Prune at current depth limit and mark that a cutoff occurred
                 if current.depth >= limit:
                     cutoff = True
-                    events.append(StepEvent(EventKind.PRUNE, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
+                    emit(StepEvent(EventKind.PRUNE, current.state, g=current.g, f=current.g, parent_state=parent_st, frontier_size=len(frontier), visited_count=len(best_depth)))
                     continue
 
-                # Push neighbors within the depth bound
+                # Push neighbors within the depth bound (cycle-checked via best_depth)
                 for action in reversed(list(problem.actions(current.state))):
                     neighbor = problem.result(current.state, action)
                     next_depth = current.depth + 1
@@ -380,9 +529,9 @@ def iterative_deepening(
                     metrics.nodes_generated += 1
                     frontier.append(child)
                     metrics.record_frontier(len(frontier))
-                    events.append(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(best_depth)))
+                    emit(StepEvent(EventKind.GENERATE, neighbor, g=g_cost, f=g_cost, parent_state=current.state, frontier_size=len(frontier), visited_count=len(best_depth)))
 
-            if goal_node is not None or not cutoff:
+            if goal_node is not None or not cutoff or aborted_reason:
                 break
 
     # Reconstruct path
@@ -397,5 +546,7 @@ def iterative_deepening(
         elapsed_sec=metrics.elapsed_sec,
         peak_memory_bytes=metrics.peak_memory_bytes,
         success=goal_node is not None,
+        aborted_reason=aborted_reason,
+        trace_truncated=trace_truncated,
         events=events,
     )

@@ -237,6 +237,37 @@ def build_stylesheet() -> str:
         border: none;
         width: 22px;
     }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button {{
+        subcontrol-origin: border;
+        subcontrol-position: top right;
+        width: 20px;
+        border-left: 1px solid {Colors.BORDER};
+        border-bottom: 1px solid {Colors.BORDER};
+        border-top-right-radius: 5px;
+        background-color: {Colors.BG_SURFACE};
+    }}
+    QSpinBox::down-button, QDoubleSpinBox::down-button {{
+        subcontrol-origin: border;
+        subcontrol-position: bottom right;
+        width: 20px;
+        border-left: 1px solid {Colors.BORDER};
+        border-bottom-right-radius: 5px;
+        background-color: {Colors.BG_SURFACE};
+    }}
+    QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+    QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+        background-color: {Colors.BG_HOVER};
+    }}
+    QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
+    QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
+        background-color: {Colors.BORDER};
+    }}
+    QSpinBox::up-arrow, QDoubleSpinBox::up-arrow,
+    QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+        image: none;
+        width: 0;
+        height: 0;
+    }}
     QComboBox QAbstractItemView {{
         background-color: {Colors.BG_ELEVATED};
         border: 1px solid {Colors.BORDER_LIGHT};

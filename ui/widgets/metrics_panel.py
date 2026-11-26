@@ -169,6 +169,13 @@ class MetricsPanel(QFrame):
         self.lbl_f.setText(f"{g + h:.2f}")
         self.lbl_parent.setText(str(parent) if parent is not None else "--")
 
+    def set_searching(self):
+        self.status_badge.setText("Searching...")
+        self.status_badge.setStyleSheet(
+            f"color: {Colors.WARNING}; background-color: {Colors.BG_ELEVATED}; "
+            f"border: 1px solid {Colors.WARNING}; border-radius: 4px; padding: 2px 6px;"
+        )
+
     def update_from_result(self, result: SearchResult):
         self.kpi_time.set_value(f"{result.elapsed_sec * 1000:.2f}")
         self.kpi_visited.set_value(str(result.nodes_expanded))
@@ -183,6 +190,12 @@ class MetricsPanel(QFrame):
             self.status_badge.setStyleSheet(
                 f"color: {Colors.SUCCESS}; background-color: {Colors.BG_ELEVATED}; "
                 f"border: 1px solid {Colors.SUCCESS}; border-radius: 4px; padding: 2px 6px;"
+            )
+        elif result.aborted_reason:
+            self.status_badge.setText(result.aborted_reason)
+            self.status_badge.setStyleSheet(
+                f"color: {Colors.WARNING}; background-color: {Colors.BG_ELEVATED}; "
+                f"border: 1px solid {Colors.WARNING}; border-radius: 4px; padding: 2px 6px;"
             )
         else:
             self.status_badge.setText("No Path")
