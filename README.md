@@ -260,15 +260,14 @@ Project-for-AI-Course/
 Developed for the **Artificial Intelligence (ELE 161)** course — **Faculty of Engineering, New Ismailia National University (NINU)**, Artificial Intelligence Engineering Program (AIEP), supervised by **Dr. Ahmed Magdy**.
 
 ### Team Members
-
-|  #  | Name               |
-| :-: | :----------------- |
-|  1  | هنا وائل عبدالرحمن |
-|  2  | مني محمد كمال      |
-|  3  | حلا محمود فوزي     |
-|  4  | زينة محمود فوزي    |
-|  5  | ملك محمد سعيد      |
-|  6  | ملك عادل نبيل      |
-|  7  | يارا أيمن محمد     |
-|  8  | يوسف محمد عبدالله  |
-|  9  | ياسين مصطفي كمال   |
+| # | Name |
+| :---: | :--- |
+| 1 | Youssef Khweter |
+| 2 | Hana Wael Abdelrahman |
+| 3 | Mona Mohamed Kamal |
+| 4 | Hala Mahmoud Fawzy |
+| 5 | Zeina Mahmoud Fawzy |
+| 6 | Malak Mohamed Saeed |
+| 7 | Malak Adel Nabil |
+| 8 | Yara Ayman Mohamed |
+| 9 | Yassin Mostafa Kamal |
