@@ -229,13 +229,9 @@ Developed for the ** Artificial Intelligence ** course — **Faculty of Engineer
 ### Team Members
 | # | Name |
 | :---: | :--- |
-| 1 | Youssef Khweter |
-| 2 | Hana Wael Abdelrahman |
-| 3 | Mona Mohamed Kamal |
-| 4 | Hala Mahmoud Fawzy |
-| 5 | Zeina Mahmoud Fawzy |
-| 6 | Malak Mohamed Saeed |
-| 7 | Malak Adel Nabil |
-| 8 | Yara Ayman Mohamed |
-| 9 | Yassin Mostafa Kamal |
-| 10| Mariam Abdelrahman Ismail |
+| 1 | Youssef Khweter | | 2 | Hana Wael Abdelrahman |
+| 3 | Mona Mohamed Kamal | | 4 | Hala Mahmoud Fawzy |
+| 5 | Zeina Mahmoud Fawzy | | 6 | Malak Mohamed Saeed |
+| 7 | Malak Adel Nabil | | 8 | Yara Ayman Mohamed |
+| 9 | Yassin Mostafa Kamal | | 10| Mariam Abdelrahman Ismail |
+
